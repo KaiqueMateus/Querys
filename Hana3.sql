@@ -1,0 +1,237 @@
+SELECT  
+
+ 
+
+distinct sup."TAXNUM",  
+
+sup."COMPANY_NAME", 
+
+ 
+
+CASE 
+
+WHEN res."REGISTER_GUID" = '4F201AAF2A2A2C38E10000000A981B07' OR res."REGISTER_GUID" = '4F201AB02A2A2C38E10000000A981B07' THEN 'CORP' 
+
+WHEN res."REGISTER_GUID" = '4F201AE42A2A2C38E10000000A981B07' THEN 'SIMP' 
+
+ELSE '' 
+
+END REGISTRO, 
+
+ 
+
+prc."PROCESS_NUM", 
+
+ 
+
+prc2."DESCRIPTION" TIPO_DO_PROCESSO, 
+
+step."STEP_ID" ETAPA, 
+
+step2."DESCRIPTION" DESC_ETAPA, 
+
+crit2."DESCRIPTION" CRITERIO, 
+
+TRIM(LEADING '0' FROM res."FAMILIA_NUM") FAMILIA_NUM, 
+
+ 
+
+CASE 
+
+WHEN VAL."PRODUCT_TYPE" = '1' THEN 'Bens' 
+
+WHEN VAL."PRODUCT_TYPE" = '2' THEN 'Serviço' 
+
+ELSE '' 
+
+END Tipo_de_Fornecimento, 
+
+ 
+
+CASE 
+
+WHEN SUP_F."OWN_MANUFACT" = 'X' AND SUP_F."RESELLER" = '' THEN 'Fabricante' 
+
+WHEN SUP_F."RESELLER" = 'X' AND SUP_F."OWN_MANUFACT" = '' THEN 'Revendedor_Distribuidor' 
+
+WHEN SUP_F."RESELLER" = 'X' AND SUP_F."OWN_MANUFACT" = 'X' THEN 'Fabricante e Revendedor' 
+
+ELSE '' 
+
+END TIPO_DE_FORNECEDOR, 
+
+ 
+
+prc_st."STATUS_DO_PROCESSO", 
+
+to_date(to_timestamp(prc."ACTIVE_DATE")) Data_de_Ativacao, 
+
+replace(to_char(replace(prc."CHANGED_AT",'.',''),'dd.mm.yyyy'),'.','/') as data_da_modificacao, 
+
+ 
+
+CASE 
+
+WHEN to_char(res."FINAL_SCORE") = '0.00' THEN '' 
+
+ELSE to_char(res."FINAL_SCORE") 
+
+END NOTA, 
+
+ 
+
+CASE 
+
+WHEN res."FINAL_FLAG" = '01' THEN 'Bandeira Verde' 
+
+WHEN res."FINAL_FLAG" = '02' THEN 'Bandeira Vermelha' 
+
+WHEN res."FINAL_FLAG" = '03' THEN 'Bandeira Amarela' 
+
+ELSE '' 
+
+END Resultado, 
+
+ 
+
+res2."FINAL_STATUS" Status_do_Fornecimento, 
+
+to_date(to_timestamp(prc."COMPLETED_AT")) Data_de_Conclusao, 
+
+step."STEP_ID" 
+
+ 
+
+ 
+
+FROM (SELECT * 
+
+FROM "LT_SCP_JNP"."YPCAD_PROCESS" 
+
+WHERE "PROCESS_TYPE" = '35') AS prc 
+
+ 
+
+INNER JOIN "LT_SCP_JNP"."YPCAD_PRC_TYPET" AS prc2 
+
+ON prc."PROCESS_TYPE" = prc2."PROCESS_TYPE" 
+
+ 
+
+INNER JOIN (SELECT "PROCESS_NUM", "REGISTER_GUID", "ROOT_GUID", "INDICATOR_GUID", "REQUIREMENT_GUID", "FINAL_SCORE", "FINAL_FLAG", "FAMILIA_NUM", "FINAL_SCORE_ADD" 
+
+FROM "LT_SCP_JNP"."YPCAD_PRC_RESULT" 
+
+WHERE "REGISTER_GUID" IN ('4F201AAF2A2A2C38E10000000A981B07','4F201AB02A2A2C38E10000000A981B07','4F201AE42A2A2C38E10000000A981B07') 
+
+AND "REQUIREMENT_GUID" != '00000000000000000000000000000000') AS res 
+
+ON prc."PROCESS_NUM" = res."PROCESS_NUM" 
+
+ 
+
+LEFT JOIN (SELECT "PROCESS_NUM", "STEP_ID", "ACTIVE" 
+
+FROM "LT_SCP_JNP"."YPCAD_PRC_STEP" 
+
+WHERE "ACTIVE" = 'X') AS step 
+
+ON res."PROCESS_NUM" = step."PROCESS_NUM" 
+
+ 
+
+LEFT JOIN (SELECT "STEP_ID", "SPRAS", "DESCRIPTION" 
+
+FROM "LT_SCP_JNP"."YPCAD_PRC_STPCGT" 
+
+WHERE "SPRAS" = 'P') AS step2 
+
+ON step."STEP_ID" = step2."STEP_ID" 
+
+ 
+
+INNER JOIN "LT_SCP_JNP"."YPCAD_SUPPLIER" AS sup 
+
+ON prc."SUPPLIER_NUM" = sup."SUPPLIER_NUM" 
+
+ 
+
+LEFT JOIN (SELECT "PROCESS_NUM", "FINAL_STATUS" 
+
+FROM "LT_SCP_JNP"."YPCAD_PRC_RESULT" 
+
+WHERE "FINAL_STATUS" != '') AS res2 
+
+ON prc."PROCESS_NUM" = res2."PROCESS_NUM" 
+
+ 
+
+LEFT JOIN "LT_SCP_JNP"."YPCAD_PRC_CRIT" as crit 
+
+ON prc."PROCESS_NUM" = crit."PROCESS_NUM" 
+
+ 
+
+ 
+
+LEFT JOIN (SELECT "CRITERIA_GUID", "SPRAS", "DESCRIPTION" 
+
+   FROM "LT_SCP_JNP"."YPCAD_VAL_CRITT"  
+
+   WHERE "SPRAS" = 'P') as crit2 
+
+ON crit."CRITERIA_GUID" = crit2."CRITERIA_GUID" 
+
+ 
+
+LEFT JOIN (SELECT 
+
+ 
+
+"PROCESS_NUM", 
+
+ 
+
+CASE  
+
+WHEN "ACTIVE" = 'X' THEN 'Aberto' 
+
+WHEN "COMPLETED" = 'X' THEN 'Fechado' 
+
+WHEN "UNUSABLE" = 'X' THEN 'Inutilizado' 
+
+ELSE '' 
+
+END Status_do_Processo 
+
+ 
+
+From "LT_SCP_JNP"."YPCAD_PROCESS") AS prc_st 
+
+ON prc."PROCESS_NUM" = prc_st."PROCESS_NUM" 
+
+ 
+
+LEFT JOIN "LT_SCP_JNP"."YPCAD_VAL_FAM" AS VAL 
+
+   ON res."FAMILIA_NUM" = VAL."FAMILIA_NUM" 
+
+    
+
+LEFT JOIN "LT_SCP_JNP"."YPCAD_SUP_FAM" AS SUP_F 
+
+   ON res."FAMILIA_NUM" = SUP_F."FAMILIA_NUM" AND prc."SUPPLIER_NUM" = SUP_F."SUPPLIER_NUM" 
+
+ 
+
+WHERE prc."PROCESS_TYPE" = '35' AND prc_st."STATUS_DO_PROCESSO" != '' 
+
+ 
+
+ORDER BY 
+
+sup."TAXNUM" ASC, 
+
+prc."PROCESS_NUM" ASC, 
+
+res."FAMILIA_NUM" ASC 
